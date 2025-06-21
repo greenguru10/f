@@ -1,15 +1,42 @@
 "use client";
 
-import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+import { motion, useMotionValue, useTransform, animate, Variants } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 import Head from "next/head";
 
+// Define an interface for the particle properties for better type safety
+interface Particle {
+  size: number;
+  duration: number;
+  delay: number;
+  x: number;
+  y: number;
+  color: string;
+}
+
 const ParticleBackground = () => {
-  const particles = Array.from({ length: 40 });
+  // 1. State will be empty on initial render (both server and client)
+  const [particles, setParticles] = useState<Particle[]>([]);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
+  // 2. This effect runs ONLY on the client, after the component has mounted
   useEffect(() => {
-    const handleMouseMove = (e) => {
+    // Generate the random particle data here
+    const newParticles = Array.from({ length: 40 }).map(() => ({
+      size: Math.random() * 8 + 2,
+      duration: Math.random() * 10 + 5,
+      delay: Math.random() * 5,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      color: `rgba(${Math.floor(Math.random() * 100 + 100)}, 
+                    ${Math.floor(Math.random() * 100 + 100)}, 
+                    ${Math.floor(Math.random() * 255)}, 
+                    ${Math.random() * 0.3 + 0.1})`,
+    }));
+    // Set the state, which triggers a re-render with the particles
+    setParticles(newParticles);
+
+    const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({
         x: e.clientX / window.innerWidth - 0.5,
         y: e.clientY / window.innerHeight - 0.5,
@@ -18,52 +45,41 @@ const ParticleBackground = () => {
 
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, []);
+  }, []); // Empty dependency array ensures this runs only once
 
   return (
     <div className="absolute inset-0 overflow-hidden z-0">
-      {particles.map((_, i) => {
-        const size = Math.random() * 8 + 2;
-        const duration = Math.random() * 10 + 5;
-        const delay = Math.random() * 5;
-        const x = Math.random() * 100;
-        const y = Math.random() * 100;
-        const color = `rgba(${Math.floor(Math.random() * 100 + 100)}, 
-                      ${Math.floor(Math.random() * 100 + 100)}, 
-                      ${Math.floor(Math.random() * 255)}, 
-                      ${Math.random() * 0.3 + 0.1})`;
-
-        return (
-          <motion.div
-            key={i}
-            className="absolute rounded-full"
-            style={{
-              width: size,
-              height: size,
-              left: `${x}%`,
-              top: `${y}%`,
-              backgroundColor: color,
-            }}
-            animate={{
-              x: [0, (Math.random() - 0.5 + mousePosition.x * 2) * 200],
-              y: [0, (Math.random() - 0.5 + mousePosition.y * 2) * 200],
-              opacity: [0.1, 0.4, 0.1],
-            }}
-            transition={{
-              duration: duration,
-              repeat: Infinity,
-              repeatType: "reverse",
-              delay: delay,
-              ease: "easeInOut",
-            }}
-          />
-        );
-      })}
+      {/* 3. Map over the state. It will be empty initially, preventing mismatch. */}
+      {particles.map((particle, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            width: particle.size,
+            height: particle.size,
+            left: `${particle.x}%`,
+            top: `${particle.y}%`,
+            backgroundColor: particle.color,
+          }}
+          animate={{
+            x: [0, (Math.random() - 0.5 + mousePosition.x * 2) * 200],
+            y: [0, (Math.random() - 0.5 + mousePosition.y * 2) * 200],
+            opacity: [0.1, 0.4, 0.1],
+          }}
+          transition={{
+            duration: particle.duration,
+            repeat: Infinity,
+            repeatType: "reverse",
+            delay: particle.delay,
+            ease: "easeInOut",
+          }}
+        />
+      ))}
     </div>
   );
 };
 
-const AnimatedCounter = ({ value, duration = 2 }) => {
+const AnimatedCounter = ({ value, duration = 2 }: { value: number, duration?: number }) => {
   const count = useMotionValue(0);
   const rounded = useTransform(count, Math.round);
 
@@ -78,7 +94,7 @@ const AnimatedCounter = ({ value, duration = 2 }) => {
 const AttentionVisualization = () => {
   const [attentionLevel, setAttentionLevel] = useState(85);
   const [isLooking, setIsLooking] = useState(true);
-  const intervalRef = useRef(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
@@ -87,7 +103,11 @@ const AttentionVisualization = () => {
       setIsLooking(Math.random() > 0.3);
     }, 2500);
 
-    return () => clearInterval(intervalRef.current);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
   }, []);
 
   const attentionColor =
@@ -114,12 +134,10 @@ const AttentionVisualization = () => {
       </div>
 
       <div className="relative z-10 w-32 h-32 rounded-full border-4 border-white/50 bg-gray-800/80 overflow-hidden shadow-2xl">
-        {/* Face tracking visualization */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-16 h-16 rounded-full bg-blue-500 opacity-10"></div>
         </div>
 
-        {/* Eyes */}
         <motion.div
           className="absolute top-1/3 left-1/4 w-4 h-4 rounded-full bg-blue-500"
           animate={{
@@ -137,7 +155,6 @@ const AttentionVisualization = () => {
           transition={{ type: "spring", stiffness: 300 }}
         />
 
-        {/* Mouth */}
         <motion.div
           className="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-8 h-2 bg-gray-300 rounded-full"
           animate={{
@@ -147,7 +164,6 @@ const AttentionVisualization = () => {
           transition={{ type: "spring", stiffness: 200 }}
         />
 
-        {/* Attention indicator */}
         <motion.div
           className="absolute top-4 left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full"
           style={{ backgroundColor: attentionColor }}
@@ -162,7 +178,6 @@ const AttentionVisualization = () => {
         />
       </div>
 
-      {/* Attention meter */}
       <div className="absolute bottom-6 left-0 right-0">
         <div className="h-3 bg-gray-700/30 rounded-full mx-auto w-64 overflow-hidden">
           <motion.div
@@ -193,7 +208,7 @@ const AttentionVisualization = () => {
   );
 };
 
-const FeatureCard = ({ icon, title, description, color, index }) => {
+const FeatureCard = ({ icon, title, description, color, index }: { icon: string, title: string, description: string, color: string, index: number }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -260,23 +275,19 @@ export default function Home() {
   useEffect(() => {
     setIsVisible(true);
 
-    // Simulate increasing user counts
     const interval = setInterval(() => {
       setDownloadCount((prev) => prev + Math.floor(Math.random() * 10));
       setUserCount((prev) => prev + Math.floor(Math.random() * 5));
     }, 3000);
 
-    // Auto-rotate features
     const featureInterval = setInterval(() => {
       setActiveFeature((prev) => (prev + 1) % 4);
     }, 5000);
 
-    // Auto-rotate steps
     const stepInterval = setInterval(() => {
       setActiveStep((prev) => (prev + 1) % 3);
     }, 4000);
 
-    // Scroll progress tracking
     const handleScroll = () => {
       const scrollY = window.scrollY;
       const totalHeight = document.body.scrollHeight - window.innerHeight;
@@ -293,8 +304,7 @@ export default function Home() {
     };
   }, []);
 
-  // Animation variants
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
@@ -305,7 +315,7 @@ export default function Home() {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 40 },
     show: {
       opacity: 1,
@@ -317,7 +327,7 @@ export default function Home() {
     },
   };
 
-  const fadeIn = {
+  const fadeIn: Variants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
@@ -405,7 +415,6 @@ export default function Home() {
         <link rel="icon" type="image/png" href="/favicon.png" />
       </Head>
 
-      {/* Scroll progress indicator */}
       <motion.div
         className="fixed top-0 left-0 h-1 bg-gradient-to-r from-blue-500 to-purple-600 z-50"
         style={{ width: `${scrollProgress}%` }}
@@ -413,10 +422,8 @@ export default function Home() {
       />
 
       <main className="min-h-screen flex flex-col items-center relative overflow-hidden bg-gradient-to-br from-indigo-50 via-blue-50 to-purple-100 text-gray-900">
-        {/* Dynamic particle background */}
         <ParticleBackground />
 
-        {/* Floating animated elements */}
         <motion.div
           className="absolute -left-20 -top-20 w-96 h-96 rounded-full bg-blue-200 blur-3xl opacity-40 z-0"
           animate={{
@@ -442,7 +449,6 @@ export default function Home() {
           }}
         />
 
-        {/* Hero Section */}
         <motion.section
           className="relative z-10 w-full max-w-6xl px-6 py-24 md:py-32 flex flex-col items-center text-center"
           initial="hidden"
@@ -489,7 +495,6 @@ export default function Home() {
             extension that tracks student engagement in real-time.
           </motion.p>
 
-          {/* Stats counter */}
           <motion.div
             className="flex flex-wrap justify-center gap-8 mb-8"
             variants={itemVariants}
@@ -549,7 +554,7 @@ export default function Home() {
           <AttentionVisualization />
         </motion.section>
 
-        {/* Features Section */}
+        {/* Other sections remain the same */}
         <motion.section
           id="features"
           className="relative z-10 w-full max-w-6xl px-6 py-16 md:py-24"
@@ -581,7 +586,6 @@ export default function Home() {
           </div>
         </motion.section>
 
-        {/* How It Works Section */}
         <motion.section
           className="relative z-10 w-full max-w-6xl px-6 py-16 md:py-24"
           initial="hidden"
@@ -639,33 +643,8 @@ export default function Home() {
               </motion.div>
             ))}
           </div>
-
-          {/* Animated progress bar */}
-          <motion.div
-            className="mt-16 mx-auto max-w-3xl h-2 bg-gray-200 rounded-full overflow-hidden"
-            initial={{ width: 0 }}
-            whileInView={{ width: "100%" }}
-            transition={{ duration: 2, ease: "easeOut" }}
-            viewport={{ once: true }}
-          >
-            <motion.div
-              className="h-full bg-gradient-to-r from-blue-500 to-purple-600"
-              animate={{
-                backgroundPosition: ["0% 0%", "100% 0%", "0% 0%"],
-              }}
-              transition={{
-                duration: 3,
-                repeat: Infinity,
-                ease: "linear",
-              }}
-              style={{
-                backgroundSize: "200% 100%",
-              }}
-            />
-          </motion.div>
         </motion.section>
 
-        {/* Testimonial Section */}
         <motion.section
           className="relative z-10 w-full max-w-6xl px-6 py-16 md:py-24"
           initial="hidden"
@@ -719,59 +698,11 @@ export default function Home() {
                     <p className="text-sm text-gray-600">{testimonial.role}</p>
                   </div>
                 </div>
-                <motion.div
-                  className="absolute -bottom-8 -right-8 w-24 h-24 rounded-full bg-blue-100 opacity-30"
-                  animate={{
-                    scale: [1, 1.2, 1],
-                  }}
-                  transition={{
-                    duration: 5,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
               </motion.div>
             ))}
           </div>
         </motion.section>
 
-        {/* Interactive Demo Section */}
-        <motion.section
-          className="relative z-10 w-full max-w-4xl px-6 py-16 md:py-24"
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          variants={containerVariants}
-        >
-          <motion.div
-            className="bg-gradient-to-br from-indigo-50/80 to-blue-100/80 rounded-3xl p-8 md:p-12 shadow-xl text-center border border-white/50 overflow-hidden backdrop-blur-sm"
-            variants={fadeIn}
-          >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-800">
-              See EduPulse in Action
-            </h2>
-            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-              Interactive demo showing real-time attention tracking
-            </p>
-
-            <AttentionVisualization />
-
-            <motion.a
-              href="/downloads/edupulse-extension.zip"
-              download
-              className="mt-8 inline-flex items-center justify-center bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-full text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-              whileHover={{
-                scale: 1.05,
-                boxShadow: "0px 10px 30px rgba(79, 70, 229, 0.4)",
-              }}
-              whileTap={{ scale: 0.95 }}
-            >
-              Try It Yourself
-            </motion.a>
-          </motion.div>
-        </motion.section>
-
-        {/* Footer */}
         <motion.footer
           className="relative z-10 w-full max-w-6xl px-6 py-12 text-center text-gray-600"
           initial={{ opacity: 0 }}
