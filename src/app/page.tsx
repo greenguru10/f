@@ -265,9 +265,9 @@ const FeatureCard = ({ icon, title, description, color, index }: { icon: string,
 
 export default function Home() {
   const [isVisible, setIsVisible] = useState(false);
-  const [activeFeature, setActiveFeature] = useState(0);
+
   const [downloadCount, setDownloadCount] = useState(12784);
-  const [userCount, setUserCount] = useState(5423);
+  const [userCount, setUserCount] = useState(5423)
   const [activeStep, setActiveStep] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
   const containerRef = useRef(null);
@@ -281,7 +281,7 @@ export default function Home() {
     }, 3000);
 
     const featureInterval = setInterval(() => {
-      setActiveFeature((prev) => (prev + 1) % 4);
+     
     }, 5000);
 
     const stepInterval = setInterval(() => {
