@@ -328,8 +328,8 @@ export default function Home() {
   };
 
  
-    },
-  };
+    
+  
 
   const features = [
     {
